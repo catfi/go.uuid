@@ -59,6 +59,8 @@ const (
 // UUID epoch (October 15, 1582) and Unix epoch (January 1, 1970).
 const epochStart = 122192928000000000
 
+var timeBase = time.Date(1582, time.October, 15, 0, 0, 0, 0, time.UTC).Unix()
+
 // Used in string method conversion
 const dash byte = '-'
 
@@ -303,6 +305,27 @@ func (u *UUID) UnmarshalBinary(data []byte) (err error) {
 // Value implements the driver.Valuer interface.
 func (u UUID) Value() (driver.Value, error) {
 	return u.String(), nil
+}
+
+func (u UUID) Timestamp() int64 {
+	if u.Version() != 1 {
+		return 0
+	}
+
+	return int64(uint64(u[0])<<24|uint64(u[1])<<16|
+		uint64(u[2])<<8|uint64(u[3])) +
+		int64(uint64(u[4])<<40|uint64(u[5])<<32) +
+		int64(uint64(u[6]&0x0F)<<56|uint64(u[7])<<48)
+}
+
+func (u UUID) Time() time.Time {
+	if u.Version() != 1 {
+		return time.Time{}
+	}
+	t := u.Timestamp()
+	sec := t / 1e7
+	nsec := (t % 1e7) * 100
+	return time.Unix(sec+timeBase, nsec).UTC()
 }
 
 // Scan implements the sql.Scanner interface.
